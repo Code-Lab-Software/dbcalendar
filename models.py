@@ -8,8 +8,8 @@ from django.db.models import get_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from dormitory.base import PublicationTracker, ChoiceBase
-from dormitory.dormitorysetup.models import Room
+from dormitorysetup.base import PublicationTracker, ChoiceBase
+from dormitorysetup.models import Room
 
 #--------------------------------------------------------------------------------
 # Modele zwiazne z kalendarzem ogolnym
@@ -22,11 +22,11 @@ class CalendarYear(PublicationTracker):
 
     def __unicode__(self):
         return u"%s" % self.year_number
-    
+
     def clean(self):
         if self.year_number < datetime.datetime.now().year:
             raise ValidationError( u"Can't add historical years")
-        
+
     class Meta:
         verbose_name = u"Calendar year"
         verbose_name_plural = u"Calendar years"
@@ -63,15 +63,15 @@ class CalendarMonth(PublicationTracker):
 
 
 class CalendarWeek(PublicationTracker):
-    '''Model reprezentujacy tygodnie przynalezne do danego roku kalendarzowego. 
+    '''Model reprezentujacy tygodnie przynalezne do danego roku kalendarzowego.
        Tygodnie tworza sie automatycznie po dodaniu roku na sygnale post_save'''
 
     calendar_year = models.ForeignKey('CalendarYear', verbose_name=u"Calendar year", related_name="calendarweeks")
     week_number = models.PositiveIntegerField(verbose_name=u"Week number")
-    
+
     def __unicode__(self):
         return u"%s (%s)" % (self.week_number, self.calendar_year)
-    
+
     def clean(self):
         #pierwsze dni nowego roku moga miec zerowy numer tydgodnia ze wzgledu na kalendarz ISO
         if week_number < 0 or week_number > 54:
@@ -113,7 +113,7 @@ class CalendarDay(PublicationTracker):
 
 
 #Autmatyczne tworzenie obiektow week, month i day po dodaniu obiektu year
-@receiver(post_save, sender=CalendarYear)        
+@receiver(post_save, sender=CalendarYear)
 def create_day_and_week(sender, instance, created, **kwargs):
     if created:
         #zlicz ilosc tygodni
@@ -133,7 +133,7 @@ def create_day_and_week(sender, instance, created, **kwargs):
 
         #lecimy ze wszystkimi dniami i miesiacami i twrzymy odpowiednie wpisy
         for month in xrange(1, 13):
-            calendar_month, created_month_obj = get_model('calendar','CalendarMonth').objects.get_or_create(calendar_year=instance, month_number=month)
+            calendar_month, created_month_obj = get_model('dormitorycalendar','CalendarMonth').objects.get_or_create(calendar_year=instance, month_number=month)
             for day in xrange(1,32):
                 try:
                     cal_date = datetime.date(year, month, day)
@@ -147,8 +147,8 @@ def create_day_and_week(sender, instance, created, **kwargs):
                     if month == 12 and  actual_week == 1:
                         actual_week = last_week
 
-                    week, created_obj = get_model('calendar','CalendarWeek').objects.get_or_create(calendar_year=instance, week_number=actual_week)
-                    get_model('calendar', 'CalendarDay').objects.get_or_create(calendar_week=week, calendar_month=calendar_month, week_day_number=actual_day, date=cal_date)
+                    week, created_obj = get_model('dormitorycalendar','CalendarWeek').objects.get_or_create(calendar_year=instance, week_number=actual_week)
+                    get_model('dormitorycalendar', 'CalendarDay').objects.get_or_create(calendar_week=week, calendar_month=calendar_month, week_day_number=actual_day, date=cal_date)
 
                 except ValueError:
                     break
