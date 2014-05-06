@@ -133,7 +133,7 @@ def create_day_and_week(sender, instance, created, **kwargs):
 
         #lecimy ze wszystkimi dniami i miesiacami i twrzymy odpowiednie wpisy
         for month in xrange(1, 13):
-            calendar_month, created_month_obj = get_model('dormitorycalendar','CalendarMonth').objects.get_or_create(calendar_year=instance, month_number=month)
+            calendar_month, created_month_obj = CalendarMonth.objects.get_or_create(calendar_year=instance, month_number=month)
             for day in xrange(1,32):
                 try:
                     cal_date = datetime.date(year, month, day)
@@ -147,8 +147,8 @@ def create_day_and_week(sender, instance, created, **kwargs):
                     if month == 12 and  actual_week == 1:
                         actual_week = last_week
 
-                    week, created_obj = get_model('dormitorycalendar','CalendarWeek').objects.get_or_create(calendar_year=instance, week_number=actual_week)
-                    get_model('dormitorycalendar', 'CalendarDay').objects.get_or_create(calendar_week=week, calendar_month=calendar_month, week_day_number=actual_day, date=cal_date)
+                    week, created_obj = CalendarWeek.objects.get_or_create(calendar_year=instance, week_number=actual_week)
+                    CalendarDay.objects.get_or_create(calendar_week=week, calendar_month=calendar_month, week_day_number=actual_day, date=cal_date)
 
                 except ValueError:
                     break
