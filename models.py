@@ -1,35 +1,34 @@
 # -*- coding: utf-8 -*-
 import datetime
 
-from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import get_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from dormitorysetup.base import PublicationTracker, ChoiceBase
-from dormitorysetup.models import Room
+from dormitorysetup.base import PublicationTracker
+from dormitorysetup.base import ChoiceBase
 
 #--------------------------------------------------------------------------------
 # Modele zwiazne z kalendarzem ogolnym
 #--------------------------------------------------------------------------------
+
 
 class CalendarYear(PublicationTracker):
     '''Model reprezenrujacy jeden rok kalendzarzowy w systemie '''
     name = models.SlugField(verbose_name=u"Calendar year code name", unique=True)
     year_number = models.PositiveIntegerField(verbose_name=u"Calendar year number", unique=True )
 
+    class Meta:
+        verbose_name = u"Calendar year"
+        verbose_name_plural = u"Calendar years"
+
     def __unicode__(self):
         return u"%s" % self.year_number
 
     def clean(self):
         if self.year_number < datetime.datetime.now().year:
-            raise ValidationError( u"Can't add historical years")
-
-    class Meta:
-        verbose_name = u"Calendar year"
-        verbose_name_plural = u"Calendar years"
+            raise ValidationError(u"Can't add historical years")
 
 
 class CalendarMonthName(ChoiceBase):
@@ -53,13 +52,13 @@ class CalendarMonth(PublicationTracker):
     calendar_year = models.ForeignKey('CalendarYear', verbose_name=u"Calendar year", related_name="calendarmonths")
     month_number = models.PositiveIntegerField(verbose_name=u"Month number", choices=CalendarMonthName)
 
-    def __unicode__(self):
-        return u"%s (%s)" % (self.month_number, self.calendar_year)
-
     class Meta:
         unique_together = ( ('calendar_year', 'month_number'),)
         verbose_name = u"Calendar month"
         verbose_name_plural = u"Calendar months"
+
+    def __unicode__(self):
+        return u"%s (%s)" % (self.month_number, self.calendar_year)
 
 
 class CalendarWeek(PublicationTracker):
@@ -69,25 +68,25 @@ class CalendarWeek(PublicationTracker):
     calendar_year = models.ForeignKey('CalendarYear', verbose_name=u"Calendar year", related_name="calendarweeks")
     week_number = models.PositiveIntegerField(verbose_name=u"Week number")
 
+    class Meta:
+        unique_together = (('calendar_year', 'week_number'),)
+        verbose_name = u"Calendar week"
+        verbose_name_plural = u"Calendar weeks"
+
     def __unicode__(self):
         return u"%s (%s)" % (self.week_number, self.calendar_year)
 
     def clean(self):
         #pierwsze dni nowego roku moga miec zerowy numer tydgodnia ze wzgledu na kalendarz ISO
-        if week_number < 0 or week_number > 54:
-            raise ValidationError(u"Wrong week number! Schould be in [0, 54]")
-
-    class Meta:
-        unique_together = ( ('calendar_year', 'week_number'),)
-        verbose_name = u"Calendar week"
-        verbose_name_plural = u"Calendar weeks"
+        if self.week_number < 0 or self.week_number > 54:
+            raise ValidationError(u"Wrong week number! Should be in [0, 54]")
 
 
 class CalendarDayName(ChoiceBase):
     MONDAY = (1, 'Monday')
     TUESDAY = (2, 'Tuesday')
     WEDNESDAY = (3, 'Wednesday')
-    THURSDAY = (4, 'Thuersday')
+    THURSDAY = (4, 'Thursday')
     FRIDAY = (5, 'Friday')
     SATURDAY = (6, 'Saturday')
     SUNDAY = (7, 'Sunday')
@@ -100,16 +99,16 @@ class CalendarDay(PublicationTracker):
     week_day_number = models.PositiveIntegerField(choices=CalendarDayName, verbose_name=u"Week day number")
     date = models.DateField(verbose_name="Date")
 
+    class Meta:
+        unique_together = (('calendar_week', 'date'), ('calendar_week', 'week_day_number'),)
+        verbose_name = u"Calendar day"
+        verbose_name_plural = u"Calendar days"
+
     def __unicode__(self):
         return u"%s %s (week=%s)" % (self.date, self.get_week_day_number_display(),  self.calendar_week)
 
     def get_week_day_number_display(self):
         return CalendarDayName._get_value(self.week_day_number)
-
-    class Meta:
-        unique_together = ( ('calendar_week','date'), ('calendar_week', 'week_day_number'),)
-        verbose_name = u"Calendar day"
-        verbose_name_plural = u"Calendar days"
 
 
 #Autmatyczne tworzenie obiektow week, month i day po dodaniu obiektu year
@@ -123,7 +122,7 @@ def create_day_and_week(sender, instance, created, **kwargs):
         year = instance.year_number
 
         while last_week == 1:
-            last_week = datetime.date(year, 12, end_day).isocalendar()[1];
+            last_week = datetime.date(year, 12, end_day).isocalendar()[1]
             end_day = end_day - 1
 
         if end_day == 30:
@@ -134,7 +133,7 @@ def create_day_and_week(sender, instance, created, **kwargs):
         #lecimy ze wszystkimi dniami i miesiacami i twrzymy odpowiednie wpisy
         for month in xrange(1, 13):
             calendar_month, created_month_obj = CalendarMonth.objects.get_or_create(calendar_year=instance, month_number=month)
-            for day in xrange(1,32):
+            for day in xrange(1, 32):
                 try:
                     cal_date = datetime.date(year, month, day)
                     iso_cal = cal_date.isocalendar()
@@ -144,7 +143,7 @@ def create_day_and_week(sender, instance, created, **kwargs):
                     if month == 1 and iso_cal[0] == year-1:
                         actual_week = 0
                     #uwaga na zmane ostatniego tygodnia w kalendarzu ISO
-                    if month == 12 and  actual_week == 1:
+                    if month == 12 and actual_week == 1:
                         actual_week = last_week
 
                     week, created_obj = CalendarWeek.objects.get_or_create(calendar_year=instance, week_number=actual_week)
