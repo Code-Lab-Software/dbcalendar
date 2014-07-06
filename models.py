@@ -6,8 +6,8 @@ from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from dormitorysetup.base import PublicationTracker
-from dormitorysetup.base import ChoiceBase
+from pubtracker.models import PublicationTracker
+from modelware.utils import ChoiceBase
 
 #--------------------------------------------------------------------------------
 # Modele zwiazne z kalendarzem ogolnym
@@ -53,6 +53,7 @@ class CalendarMonth(PublicationTracker):
     month_number = models.PositiveIntegerField(verbose_name=u"Month number", choices=CalendarMonthName)
 
     class Meta:
+        ordering = ('calendar_year__year_number', 'month_number')
         unique_together = ( ('calendar_year', 'month_number'),)
         verbose_name = u"Calendar month"
         verbose_name_plural = u"Calendar months"
